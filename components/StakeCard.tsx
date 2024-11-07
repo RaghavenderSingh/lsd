@@ -21,7 +21,6 @@ import {
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
-import prisma from "@/app/db";
 
 export default function StakeCard() {
   const { connected, publicKey, sendTransaction } = useWallet();
@@ -50,7 +49,6 @@ export default function StakeCard() {
       const signature = await sendTransaction(transaction, connection);
       console.log(`Transaction signature: ${signature}`);
 
-      // Save the stake transaction to the server-side API
       await saveStakeTransaction(
         publicKey.toString(),
         recipientPubKey.toString(),

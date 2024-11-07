@@ -1,36 +1,39 @@
-import { getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
-import { clusterApiUrl, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import bs58 from "bs58";
-function base58ToKeypair(base58PrivateKey: string) {
+import { createBurnCheckedInstruction, getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
+import { Commitment, Connection, Keypair, PublicKey, TransactionMessage, VersionedTransaction, TransactionInstruction, SystemProgram } from "@solana/web3.js";
+import { PRIVATE_KEY, TOKEN_MINT_ADDRESS } from "./address";
+import bs58 from 'bs58';
+
+const mint = new PublicKey(process.env.TOKEN_MINT_ADDRESS!);
+const connection = new Connection("https://api.devnet.solana.com/", "confirmed");
+const private_key =process.env.PRIVATE_KEY!;
+const wallet = bs58.decode(private_key as string);
+const keypair = Keypair.fromSecretKey(new Uint8Array(wallet));
+const token_decimals = BigInt(1_000_000);
+
+
+export const mintTokens = async (fromAddress: string, amount: number) => {
+  const mintto = new PublicKey(fromAddress);
+  console.log("Minting tokens");
   try {
-    console.log("base58toKeypair");
-    const privateKeyBuffer = bs58.decode(base58PrivateKey);
-      return Keypair.fromSecretKey(privateKeyBuffer);
+      const ata = await getOrCreateAssociatedTokenAccount(
+          connection,
+          keypair,
+          mint,
+          mintto,
+      );
+
+      const mintTx = await mintTo(
+          connection,
+          keypair,
+          mint,
+          ata.address,
+          keypair.publicKey,
+          token_decimals * BigInt(amount),
+      );
+      console.log(`Success! Minted transaction at ${mintTx}`);
+      console.log(`Success! Minted ${amount} tokens to ${ata.address.toBase58()}`);
   } catch (error) {
-    throw new Error("Invalid base58 private key.");
+      console.error("Minting Error:", error);
   }
 }
 
-const connection = new Connection(clusterApiUrl("devnet"));
-const mintAddress = new PublicKey(process.env.TOKEN_MINT_ADDRESS!);
-const payer = base58ToKeypair(process.env.PRIVATE_KEY!);
-const LSD_RATE = 9600000000;
-export const TOKEN_DECIMALS = 1000000000; 
-
-export const mintTokens = async (toAddress: string,fromAddress: string, amount: number) => {
-   const to = new PublicKey(toAddress);
-   const amt = LSD_RATE* (amount/LAMPORTS_PER_SOL);
-   const asscociatedAccount = await getOrCreateAssociatedTokenAccount(
-    connection,
-    payer,
-    mintAddress,
-    to
-   )
-   mintTo(connection,payer,mintAddress,asscociatedAccount.address,payer,amt);
-}
-export const burnTokens = async (fromAddress: string, toAddress: string, amount: number) => {
-    console.log("Burning tokens");
-}
-export const sendNativeTokens = async (fromAddress: string, toAddress: string, amount: number) => {
-    console.log("Sending native tokens");
-}
