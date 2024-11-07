@@ -1,6 +1,6 @@
 import { createBurnCheckedInstruction, getOrCreateAssociatedTokenAccount, mintTo } from "@solana/spl-token";
 import { Commitment, Connection, Keypair, PublicKey, TransactionMessage, VersionedTransaction, TransactionInstruction, SystemProgram } from "@solana/web3.js";
-import { PRIVATE_KEY, TOKEN_MINT_ADDRESS } from "./address";
+
 import bs58 from 'bs58';
 
 const mint = new PublicKey(process.env.TOKEN_MINT_ADDRESS!);
