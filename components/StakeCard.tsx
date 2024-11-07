@@ -21,6 +21,7 @@ import {
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
+import prisma from "@/app/db";
 
 export default function StakeCard() {
   const { connected, publicKey, sendTransaction } = useWallet();
@@ -48,8 +49,46 @@ export default function StakeCard() {
 
       const signature = await sendTransaction(transaction, connection);
       console.log(`Transaction signature: ${signature}`);
+
+      // Save the stake transaction to the server-side API
+      await saveStakeTransaction(
+        publicKey.toString(),
+        recipientPubKey.toString(),
+        amount,
+        signature
+      );
     } catch (e) {
       console.log(e);
+    }
+  }
+
+  async function saveStakeTransaction(
+    walletAddress: string,
+    recipientAddress: string,
+    amount: number,
+    signature: string
+  ) {
+    try {
+      const response = await fetch("/api/stake", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          walletAddress,
+          recipientAddress,
+          amount,
+          signature,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error saving stake transaction");
+      }
+
+      console.log("Stake transaction saved to the database");
+    } catch (error) {
+      console.error("Error saving stake transaction to the database:", error);
     }
   }
 
