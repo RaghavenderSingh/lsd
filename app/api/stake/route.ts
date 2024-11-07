@@ -1,5 +1,5 @@
-// pages/api/stake.ts
-import prisma from '@/app/db';
+
+import prisma from '../../../app/db';
 import { NextResponse } from 'next/server';
 
 
