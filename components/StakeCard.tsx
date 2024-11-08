@@ -20,12 +20,16 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionSignature,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import {
   getAccount,
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   TokenAccountNotFoundError,
+  createBurnCheckedInstruction,
+  getMint,
 } from "@solana/spl-token";
 
 export default function StakeCard() {
@@ -147,6 +151,98 @@ export default function StakeCard() {
     }
   }
 
+  async function handleUnstake() {
+    if (!connected || !publicKey) {
+      setVisible(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 1. Get user's associated token account
+      const userATA = await getAssociatedTokenAddress(mintAddress, publicKey);
+
+      // 2. Check token balance
+      const tokenBalance = await connection.getTokenAccountBalance(userATA);
+      const userBalance = Number(tokenBalance.value.amount) / LAMPORTS_PER_SOL;
+
+      if (userBalance < amount) {
+        throw new Error("Insufficient token balance");
+      }
+
+      // 3. Create transaction
+      const transaction = new Transaction();
+
+      // 4. Get latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash("finalized");
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // 5. Create burn instruction
+      const burnInstruction = createBurnCheckedInstruction(
+        userATA, // from (user's ATA)
+        mintAddress, // mint
+        publicKey, // owner
+        amount * LAMPORTS_PER_SOL, // amount
+        (await getMint(connection, mintAddress)).decimals // decimals
+      );
+
+      // 6. Add instructions to transaction
+      transaction.add(burnInstruction);
+
+      // 7. Send and confirm transaction
+      const signature = await sendTransaction(transaction, connection);
+      console.log("Transaction sent:", signature);
+
+      // 8. Wait for confirmation
+      const confirmation = await connection.confirmTransaction(
+        signature,
+        "confirmed"
+      );
+
+      if (confirmation.value.err) {
+        throw new Error(
+          `Transaction failed to confirm: ${JSON.stringify(
+            confirmation.value.err
+          )}`
+        );
+      }
+
+      // 9. Call backend to process SOL return
+      const response = await fetch("/api/unstake", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          walletAddress: publicKey.toString(),
+          amount: amount,
+          signature,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process unstake on server");
+      }
+
+      // 10. Refresh balances
+      await fetchStakedBalance();
+      console.log("Successfully unstaked tokens!");
+    } catch (error: any) {
+      console.error("Unstake error:", error);
+      if (error.message.includes("Custom:18")) {
+        setError(
+          "There was an error with the unstake operation. Please try again later."
+        );
+      } else {
+        setError(error.message || "Failed to unstake. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
   return (
     <div className="mt-12">
       <Card className="w-full min-w-[500px] border-[#e84125] border-2 rounded-lg shadow-md">
@@ -218,7 +314,48 @@ export default function StakeCard() {
               </div>
             </TabsContent>
             <TabsContent value="managestake">
-              Manage your stake here.
+              <div className="mt-4 p-4">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                    {error}
+                  </div>
+                )}
+                <div className="mb-2">
+                  <p className="text-xs text-gray-400">Amount to Unstake</p>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <SolanaLogo className="h-4 w-4 dark:text-white" />
+                  </div>
+                  <input
+                    type="text"
+                    className="w-full border-2 border-[#e84125] rounded-lg p-2 pl-10"
+                    placeholder="0.00 SOL"
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="mt-8">
+                  {connected ? (
+                    <Button
+                      className="w-full bg-[#e84125] h-[40px] text-white text-lg font-bold hover:bg-[#e84125]"
+                      onClick={handleUnstake}
+                      disabled={isLoading || amount > stakedBalance}
+                    >
+                      {isLoading ? "Processing..." : "Unstake"}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => setVisible(true)}
+                      className="w-full bg-[#e84125] h-[40px] text-white text-lg font-bold hover:bg-[#e84125]"
+                      disabled={isLoading}
+                    >
+                      Connect Wallet
+                    </Button>
+                  )}
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

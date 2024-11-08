@@ -59,7 +59,6 @@ console.log("signature",signature);
 
     if (type === "SOL" && status === "transferred") {
       try {
-        // Mint tokens
         await mintTokens(fromAddress, amount);
         
      
@@ -78,8 +77,6 @@ console.log("signature",signature);
         });
       } catch (error) {
         console.error("Error processing stake:", error);
-        
-        // Update stake record to failed status
         await prisma.stake.update({
           where: { id: pendingStake.id },
           data: {
