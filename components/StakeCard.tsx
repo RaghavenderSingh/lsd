@@ -13,7 +13,7 @@ import { Coins } from "lucide-react";
 import { SolanaLogo } from "@/lib/sol";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { Button } from "./ui/button";
-import { useWalletModal, WalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import {
   Connection,
   LAMPORTS_PER_SOL,
@@ -21,12 +21,63 @@ import {
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
+import {
+  getAccount,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  TokenAccountNotFoundError,
+} from "@solana/spl-token";
 
 export default function StakeCard() {
   const { connected, publicKey, sendTransaction } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const [amount, setAmount] = useState(0);
+  const [stakedBalance, setStakedBalance] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mintAddress = new PublicKey(
+    process.env.NEXT_PUBLIC_TOKEN_MINT_ADDRESS!
+  );
+
+  async function fetchStakedBalance() {
+    if (!publicKey) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const associatedTokenAddress = await getAssociatedTokenAddress(
+        mintAddress,
+        publicKey
+      );
+
+      const tokenAccount = await getAccount(connection, associatedTokenAddress);
+      console.log("Token account:", tokenAccount);
+      setStakedBalance(Number(tokenAccount.amount) / LAMPORTS_PER_SOL);
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        // Token account doesn't exist yet - this is normal for new users
+        setStakedBalance(0);
+      } else {
+        console.error("Error fetching staked balance:", error);
+        setError("Failed to fetch staked balance. Please try again.");
+        setStakedBalance(0);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (connected && publicKey) {
+      fetchStakedBalance();
+    } else {
+      setStakedBalance(0);
+      setError(null);
+    }
+  }, [connected, publicKey]);
 
   async function handleSendSol() {
     if (!connected || !publicKey) {
@@ -36,16 +87,19 @@ export default function StakeCard() {
 
     const recipientPubKey = new PublicKey(process.env.NEXT_PUBLIC_PUBLIC_KEY!);
     try {
+      setIsLoading(true);
+      setError(null);
+
       const transaction = new Transaction();
       const sendSolInstruction = SystemProgram.transfer({
-        fromPubkey: new PublicKey(publicKey.toString()),
+        fromPubkey: publicKey,
         toPubkey: recipientPubKey,
         lamports: amount * LAMPORTS_PER_SOL,
       });
       transaction.add(sendSolInstruction);
 
       const signature = await sendTransaction(transaction, connection);
-      console.log(`Transaction signature: ${signature}`);
+      await connection.confirmTransaction(signature);
 
       await saveStakeTransaction(
         publicKey.toString(),
@@ -53,8 +107,14 @@ export default function StakeCard() {
         amount,
         signature
       );
+
+      // Refresh the staked balance after successful stake
+      await fetchStakedBalance();
     } catch (e) {
-      console.log(e);
+      console.error("Error staking:", e);
+      setError("Failed to stake. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -81,10 +141,9 @@ export default function StakeCard() {
       if (!response.ok) {
         throw new Error("Error saving stake transaction");
       }
-
-      console.log("Stake transaction saved to the database");
     } catch (error) {
       console.error("Error saving stake transaction to the database:", error);
+      throw error; // Propagate the error to be handled by the caller
     }
   }
 
@@ -92,7 +151,11 @@ export default function StakeCard() {
     <div className="mt-12">
       <Card className="w-full min-w-[500px] border-[#e84125] border-2 rounded-lg shadow-md">
         <CardHeader className="flex justify-between items-center text-2xl">
-          0.00 SOL Staked
+          {isLoading ? (
+            <span>Loading...</span>
+          ) : (
+            `${stakedBalance.toFixed(2)} SOL Staked`
+          )}
         </CardHeader>
         <CardContent className="w-full">
           <Tabs defaultValue="stake" className="w-full">
@@ -112,6 +175,11 @@ export default function StakeCard() {
             </TabsList>
             <TabsContent value="stake">
               <div className="mt-4 p-4">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+                    {error}
+                  </div>
+                )}
                 <div className="mb-2">
                   <p className="text-xs text-gray-400">Amount to stake</p>
                 </div>
@@ -124,6 +192,7 @@ export default function StakeCard() {
                     className="w-full border-2 border-[#e84125] rounded-lg p-2 pl-10"
                     placeholder="0.00 SOL"
                     onChange={(e) => setAmount(Number(e.target.value))}
+                    disabled={isLoading}
                   />
                 </div>
 
@@ -132,13 +201,15 @@ export default function StakeCard() {
                     <Button
                       onClick={handleSendSol}
                       className="w-full bg-[#e84125] h-[40px] text-white text-lg font-bold hover:bg-[#e84125]"
+                      disabled={isLoading}
                     >
-                      Stake
+                      {isLoading ? "Processing..." : "Stake"}
                     </Button>
                   ) : (
                     <Button
                       onClick={() => setVisible(true)}
                       className="w-full bg-[#e84125] h-[40px] text-white text-lg font-bold hover:bg-[#e84125]"
+                      disabled={isLoading}
                     >
                       Connect Wallet
                     </Button>
