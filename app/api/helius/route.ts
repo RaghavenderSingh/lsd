@@ -39,10 +39,7 @@ export async function POST(request: Request) {
     const amount = parseFloat(details[2]);
     const type = details[3];
     const toAddress = details[5];
-console.log("toAddress walletAddress",toAddress);
-console.log("fromAddress recipientAddress",fromAddress);
-console.log("amount",amount);
-console.log("signature",signature);
+
     const pendingStake = await prisma.stake.findFirst({
       where: {
         // walletAddress:fromAddress,
@@ -51,7 +48,7 @@ console.log("signature",signature);
         signature: signature
       }
     });
-   console.log(pendingStake)
+  
     if (!pendingStake) {
       console.log("No pending stake found for transaction:", signature);
       return NextResponse.json({ message: "No matching pending stake found" });
