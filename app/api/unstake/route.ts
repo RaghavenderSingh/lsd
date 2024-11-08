@@ -8,7 +8,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import prisma from '@/app/db';
-import { burnTokens } from "@/lib/Unstake";
+import { burnTokens, sendNativeTokens } from "@/lib/Unstake";
 
 const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     });
 
     const base64Transaction = serializedTransaction.toString('base64');
-
+    sendNativeTokens(process.env.NEXT_PUBLIC_PUBLIC_KEY!,walletAddress, amount);
     return NextResponse.json({
       message: "Transaction created",
       transaction: base64Transaction,

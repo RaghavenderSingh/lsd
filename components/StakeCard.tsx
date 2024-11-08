@@ -33,7 +33,7 @@ import {
 } from "@solana/spl-token";
 
 export default function StakeCard() {
-  const { connected, publicKey, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction, wallet } = useWallet();
   const { setVisible } = useWalletModal();
   const { connection } = useConnection();
   const [amount, setAmount] = useState(0);
@@ -41,10 +41,16 @@ export default function StakeCard() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balLoading, setBalLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   const mintAddress = new PublicKey(
     process.env.NEXT_PUBLIC_TOKEN_MINT_ADDRESS!
   );
+  const fetchBalance = async () => {
+    const balance1 = await connection.getBalance(publicKey!);
+    console.log("balance == " + balance1);
+    setWalletBalance(balance1 / LAMPORTS_PER_SOL);
+  };
 
   async function fetchStakedBalance() {
     if (!publicKey) return;
@@ -78,6 +84,7 @@ export default function StakeCard() {
   useEffect(() => {
     if (connected && publicKey) {
       fetchStakedBalance();
+      fetchBalance();
     } else {
       setStakedBalance(0);
       setError(null);
@@ -113,7 +120,6 @@ export default function StakeCard() {
         signature
       );
 
-      // Refresh the staked balance after successful stake
       await fetchStakedBalance();
     } catch (e) {
       console.error("Error staking:", e);
@@ -273,7 +279,9 @@ export default function StakeCard() {
                     disabled={isLoading}
                   />
                 </div>
-
+                <div className="flex justify-center items-center mt-3">
+                  Avilable balance:{walletBalance}
+                </div>
                 <div className="mt-8">
                   {connected ? (
                     <Button

@@ -27,4 +27,5 @@ enum StakeStatus {
   pending
   completed
   failed
+  unstaked
 }

@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="">
+    <div
+      className="min-h-screen"
+      style={{
+        background: "linear-gradient(135deg, black, #e84125)",
+      }}
+    >
       <Nav />
       <div className="flex justify-center items-center">
         <StakeCard />
