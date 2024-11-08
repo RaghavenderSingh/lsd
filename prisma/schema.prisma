@@ -14,11 +14,17 @@ datasource db {
 }
 
 model Stake {
-  id               Int      @id @default(autoincrement())
+  id               Int         @id @default(autoincrement())
   walletAddress    String
   recipientAddress String
   amount           Decimal
   signature        String
-  status           String
-  createdAt        DateTime @default(now())
+  status           StakeStatus
+  createdAt        DateTime    @default(now())
+}
+
+enum StakeStatus {
+  pending
+  completed
+  failed
 }

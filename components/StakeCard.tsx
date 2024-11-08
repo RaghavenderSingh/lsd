@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -34,13 +34,11 @@ export default function StakeCard() {
       return;
     }
 
+    const recipientPubKey = new PublicKey(process.env.NEXT_PUBLIC_PUBLIC_KEY!);
     try {
-      const recipientPubKey = new PublicKey(
-        "HkeCQhzEQxNosC47ecnnW8CnrrkzZ9VJDxq5BTZGuZd"
-      );
       const transaction = new Transaction();
       const sendSolInstruction = SystemProgram.transfer({
-        fromPubkey: publicKey,
+        fromPubkey: new PublicKey(publicKey.toString()),
         toPubkey: recipientPubKey,
         lamports: amount * LAMPORTS_PER_SOL,
       });
@@ -49,46 +47,46 @@ export default function StakeCard() {
       const signature = await sendTransaction(transaction, connection);
       console.log(`Transaction signature: ${signature}`);
 
-      // await saveStakeTransaction(
-      //   publicKey.toString(),
-      //   recipientPubKey.toString(),
-      //   amount,
-      //   signature
-      // );
+      await saveStakeTransaction(
+        publicKey.toString(),
+        recipientPubKey.toString(),
+        amount,
+        signature
+      );
     } catch (e) {
       console.log(e);
     }
   }
 
-  // async function saveStakeTransaction(
-  //   walletAddress: string,
-  //   recipientAddress: string,
-  //   amount: number,
-  //   signature: string
-  // ) {
-  //   try {
-  //     const response = await fetch("/api/stake", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         walletAddress,
-  //         recipientAddress,
-  //         amount,
-  //         signature,
-  //       }),
-  //     });
+  async function saveStakeTransaction(
+    walletAddress: string,
+    recipientAddress: string,
+    amount: number,
+    signature: string
+  ) {
+    try {
+      const response = await fetch("/api/stake", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          walletAddress,
+          recipientAddress,
+          amount,
+          signature,
+        }),
+      });
 
-  //     if (!response.ok) {
-  //       throw new Error("Error saving stake transaction");
-  //     }
+      if (!response.ok) {
+        throw new Error("Error saving stake transaction");
+      }
 
-  //     console.log("Stake transaction saved to the database");
-  //   } catch (error) {
-  //     console.error("Error saving stake transaction to the database:", error);
-  //   }
-  // }
+      console.log("Stake transaction saved to the database");
+    } catch (error) {
+      console.error("Error saving stake transaction to the database:", error);
+    }
+  }
 
   return (
     <div className="mt-12">

@@ -1,8 +1,8 @@
 
 
-export const PUBLIC_KEY = process.env.PUBLIC_KEY!;
-export const PRIVATE_KEY = process.env.PRIVATE_KEY!;
-export const TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT_ADDRESS!;
+export const NEXT_PUBLIC_PUBLIC_KEY = process.env.NEXT_PUBLIC_PUBLIC_KEY!;
+export const NEXT_PUBLIC_PRIVATE_KEY = process.env.NEXT_PUBLIC_PRIVATE_KEY!;
+export const NEXT_PUBLIC_TOKEN_MINT_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_MINT_ADDRESS!;
 
 
 // import prisma from '../../../app/db';
