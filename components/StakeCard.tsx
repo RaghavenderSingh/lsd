@@ -40,6 +40,7 @@ export default function StakeCard() {
   const [stakedBalance, setStakedBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [balLoading, setBalLoading] = useState(false);
 
   const mintAddress = new PublicKey(
     process.env.NEXT_PUBLIC_TOKEN_MINT_ADDRESS!
@@ -49,7 +50,7 @@ export default function StakeCard() {
     if (!publicKey) return;
 
     try {
-      setIsLoading(true);
+      setBalLoading(true);
       setError(null);
 
       const associatedTokenAddress = await getAssociatedTokenAddress(
@@ -70,7 +71,7 @@ export default function StakeCard() {
         setStakedBalance(0);
       }
     } finally {
-      setIsLoading(false);
+      setBalLoading(false);
     }
   }
 
@@ -147,7 +148,7 @@ export default function StakeCard() {
       }
     } catch (error) {
       console.error("Error saving stake transaction to the database:", error);
-      throw error; // Propagate the error to be handled by the caller
+      throw error;
     }
   }
 
@@ -161,42 +162,27 @@ export default function StakeCard() {
     setError(null);
 
     try {
-      // 1. Get user's associated token account
       const userATA = await getAssociatedTokenAddress(mintAddress, publicKey);
-
-      // 2. Check token balance
       const tokenBalance = await connection.getTokenAccountBalance(userATA);
       const userBalance = Number(tokenBalance.value.amount) / LAMPORTS_PER_SOL;
 
       if (userBalance < amount) {
         throw new Error("Insufficient token balance");
       }
-
-      // 3. Create transaction
       const transaction = new Transaction();
-
-      // 4. Get latest blockhash
       const { blockhash } = await connection.getLatestBlockhash("finalized");
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
-
-      // 5. Create burn instruction
       const burnInstruction = createBurnCheckedInstruction(
-        userATA, // from (user's ATA)
-        mintAddress, // mint
-        publicKey, // owner
-        amount * LAMPORTS_PER_SOL, // amount
-        (await getMint(connection, mintAddress)).decimals // decimals
+        userATA,
+        mintAddress,
+        publicKey,
+        amount * LAMPORTS_PER_SOL,
+        (await getMint(connection, mintAddress)).decimals
       );
-
-      // 6. Add instructions to transaction
       transaction.add(burnInstruction);
-
-      // 7. Send and confirm transaction
       const signature = await sendTransaction(transaction, connection);
       console.log("Transaction sent:", signature);
-
-      // 8. Wait for confirmation
       const confirmation = await connection.confirmTransaction(
         signature,
         "confirmed"
@@ -209,8 +195,6 @@ export default function StakeCard() {
           )}`
         );
       }
-
-      // 9. Call backend to process SOL return
       const response = await fetch("/api/unstake", {
         method: "POST",
         headers: {
@@ -226,8 +210,6 @@ export default function StakeCard() {
       if (!response.ok) {
         throw new Error("Failed to process unstake on server");
       }
-
-      // 10. Refresh balances
       await fetchStakedBalance();
       console.log("Successfully unstaked tokens!");
     } catch (error: any) {
@@ -247,7 +229,7 @@ export default function StakeCard() {
     <div className="mt-12">
       <Card className="w-full min-w-[500px] border-[#e84125] border-2 rounded-lg shadow-md">
         <CardHeader className="flex justify-between items-center text-2xl">
-          {isLoading ? (
+          {balLoading ? (
             <span>Loading...</span>
           ) : (
             `${stakedBalance.toFixed(2)} SOL Staked`
