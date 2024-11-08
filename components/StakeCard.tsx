@@ -69,7 +69,7 @@ export default function StakeCard() {
       setStakedBalance(Number(tokenAccount.amount) / LAMPORTS_PER_SOL);
     } catch (error) {
       if (error instanceof TokenAccountNotFoundError) {
-        // Token account doesn't exist yet - this is normal for new users
+        // Token account doesn't exist
         setStakedBalance(0);
       } else {
         console.error("Error fetching staked balance:", error);
